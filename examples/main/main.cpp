@@ -528,7 +528,7 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
     auto end_arr = [&](bool end) {
         indent--;
         doindent();
-        fout << (end ? "]\n" : "},\n");
+        fout << (end ? "]\n" : "],\n");
     };
 
     auto start_obj = [&](const char *name) {
@@ -564,6 +564,12 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
     };
 
     auto value_i = [&](const char *name, const int64_t val, bool end) {
+        start_value(name);
+        fout << val;
+        end_value(end);
+    };
+
+    auto value_f = [&](const char *name, const float_t val, bool end) {
         start_value(name);
         fout << val;
         end_value(end);
@@ -628,6 +634,24 @@ bool output_json(struct whisper_context * ctx, const char * fname, const whisper
                         value_i("from", t0 * 10, false);
                         value_i("to", t1 * 10, true);
                     end_obj(false);
+
+                    start_arr("tokens");
+                        const int n_tokens = whisper_full_n_tokens(ctx, i);
+
+                        for (int j = 0; j < n_tokens; j++) {
+                            auto token_info = whisper_full_get_token_data(ctx, i, j);
+                            auto token = whisper_full_get_token_text(ctx, i, j);
+                            auto probability = whisper_full_get_token_p(ctx, i, j);
+
+                            start_obj(nullptr);
+                                value_s("token", token, false);
+                                value_f("probability", probability, false);
+                                value_i("from", token_info.t0 * 10, false);
+                                value_i("to", token_info.t1 * 10, true);
+                            end_obj(j == (n_tokens - 1));
+                        }
+                    end_arr(false);
+
                     value_s("text", text, !params.diarize && !params.tinydiarize);
 
                     if (params.diarize && pcmf32s.size() == 2) {
